@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 jax.config.update("jax_enable_x64", True)
 # ------ GLOBAL QUANTITIES -------
-z_grid = jnp.linspace(0, 5.0, 1000)
-nbintt = 217
+z_grid = jnp.linspace(0, 5.0, 1000) # redshift grid which emulators were trained on
+nbintt = 217 
 nbinte = 199
 nbinee = 199
 ellmin=2
