@@ -12,8 +12,10 @@ from getdist import plots, MCSamples, loadMCSamples
 import matplotlib.pyplot as plt
 
 jax.config.update("jax_enable_x64", True)
-# ------ GLOBAL QUANTITIES -------
-z_grid = jnp.linspace(0, 5.0, 1000) # redshift grid which emulators were trained on
+# ------ Set redshift grid for emulator -------
+z_grid = jnp.linspace(0, 5.0, 1000) 
+# ------ Set binning quantiites for CMB (taken from Planck-lite-py by heather prince) ------
+# ------ This is predominantly used in the high-l TTTEEE data ------
 nbintt = 217 
 nbinte = 199
 nbinee = 199
@@ -33,6 +35,7 @@ blmin_TT=np.concatenate((blmin_low_ell, blmin+len(bin_w_low_ell)))
 blmax_TT=np.concatenate((blmax_low_ell, blmax+len(bin_w_low_ell)))
 bin_w_TT=np.concatenate((bin_w_low_ell, bin_w))
 
+# ------ Get the data for the binned log-normal low-l EE and TT spectra (taken from planck-low-py by heather prince) ------
 #EE
 lmin_list_EE, lmax_list_EE, mu_LN_EE, sig_LN_EE, loc_LN_EE=np.loadtxt(
         '/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_low_ell/lognormal_fit_3bins_EE.txt', unpack=True)
