@@ -12,8 +12,16 @@ from getdist import plots, MCSamples, loadMCSamples
 import matplotlib.pyplot as plt
 
 jax.config.update("jax_enable_x64", True) # this is set as 64-bit precision is necessary
+
+# ------ Get the repository root directory -------
+# This allows the code to work when run from any directory
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_data_base = os.path.join(_repo_root, 'Data_for_class')
+_emulator_base = os.path.join(_repo_root, 'Emulators')
+
 # ------ Set redshift grid for emulator -------
 z_grid = jnp.linspace(0, 5.0, 1000) 
+
 # ------ Set binning quantiites for CMB (taken from Planck-lite-py by heather prince) ------
 # ------ This is predominantly used in the high-l TTTEEE data ------
 nbintt = 217 
@@ -22,31 +30,40 @@ nbinee = 199
 ellmin=2
 plmin_TT = 2
 plmin = 30
-blmin = np.loadtxt('/cephfs/jlayton/MPhys/data/planck_2018/baseline/plc_3.0/hi_l/plik_lite/plik_lite_v22_TTTEEE.clik/clik/lkl_0/_external/blmin.dat').astype(int)
-blmax = np.loadtxt('/cephfs/jlayton/MPhys/data/planck_2018/baseline/plc_3.0/hi_l/plik_lite/plik_lite_v22_TTTEEE.clik/clik/lkl_0/_external/blmax.dat').astype(int)
-bin_w = np.loadtxt('/cephfs/jlayton/MPhys/data/planck_2018/baseline/plc_3.0/hi_l/plik_lite/plik_lite_v22_TTTEEE.clik/clik/lkl_0/_external/bweight.dat')
-blmin_low_ell = np.loadtxt('/cephfs/jlayton/MPhys/Planck_2018_low_ell/blmin_low_ell.dat').astype(int)
-blmax_low_ell = np.loadtxt('/cephfs/jlayton/MPhys/Planck_2018_low_ell/blmax_low_ell.dat').astype(int)
-bin_w_low_ell = np.loadtxt('/cephfs/jlayton/MPhys/Planck_2018_low_ell/bweight_low_ell.dat')
 
-bval_low_ell, X_data_low_ell, X_sig_low_ell=np.genfromtxt('/cephfs/jlayton/MPhys/Planck_2018_low_ell/CTT_bin_low_ell_2018.dat', unpack=True)
-bval, X_data, X_sig=np.genfromtxt('/cephfs/jlayton/MPhys/data/planck_2018/baseline/plc_3.0/hi_l/plik_lite/plik_lite_v22_TTTEEE.clik/clik/lkl_0/_external/cl_cmb_plik_v22.dat', unpack=True)
-blmin_TT=np.concatenate((blmin_low_ell, blmin+len(bin_w_low_ell)))
-blmax_TT=np.concatenate((blmax_low_ell, blmax+len(bin_w_low_ell)))
-bin_w_TT=np.concatenate((bin_w_low_ell, bin_w))
+# Load Planck high-l binning data from local directory
+_planck_highell_dir = os.path.join(_data_base, 'Planck_2018_plik_lite')
+blmin = np.loadtxt(os.path.join(_planck_highell_dir, 'blmin.dat')).astype(int)
+blmax = np.loadtxt(os.path.join(_planck_highell_dir, 'blmax.dat')).astype(int)
+bin_w = np.loadtxt(os.path.join(_planck_highell_dir, 'bweight.dat'))
+
+# Load Planck low-l binning data from local directory
+_planck_lowell_dir = os.path.join(_data_base, 'Planck_2018_low_ell')
+blmin_low_ell = np.loadtxt(os.path.join(_planck_lowell_dir, 'blmin_low_ell.dat')).astype(int)
+blmax_low_ell = np.loadtxt(os.path.join(_planck_lowell_dir, 'blmax_low_ell.dat')).astype(int)
+bin_w_low_ell = np.loadtxt(os.path.join(_planck_lowell_dir, 'bweight_low_ell.dat'))
+
+bval_low_ell, X_data_low_ell, X_sig_low_ell = np.genfromtxt(
+    os.path.join(_planck_lowell_dir, 'CTT_bin_low_ell_2018.dat'), unpack=True)
+bval, X_data, X_sig = np.genfromtxt(
+    os.path.join(_planck_highell_dir, 'cl_cmb_plik_v22.dat'), unpack=True)
+
+blmin_TT = np.concatenate((blmin_low_ell, blmin+len(bin_w_low_ell)))
+blmax_TT = np.concatenate((blmax_low_ell, blmax+len(bin_w_low_ell)))
+bin_w_TT = np.concatenate((bin_w_low_ell, bin_w))
 
 # ------ Get the data for the binned log-normal low-l EE and TT spectra (taken from planck-low-py by heather prince) ------
-#EE
-lmin_list_EE, lmax_list_EE, mu_LN_EE, sig_LN_EE, loc_LN_EE=np.loadtxt(
-        '/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_low_ell/lognormal_fit_3bins_EE.txt', unpack=True)
-lmin_list_EE=lmin_list_EE.astype('int')
-lmax_list_EE=lmax_list_EE.astype('int')
+# EE
+lmin_list_EE, lmax_list_EE, mu_LN_EE, sig_LN_EE, loc_LN_EE = np.loadtxt(
+    os.path.join(_planck_lowell_dir, 'lognormal_fit_3bins_EE.txt'), unpack=True)
+lmin_list_EE = lmin_list_EE.astype('int')
+lmax_list_EE = lmax_list_EE.astype('int')
 
-#TT
-lmin_list_TT, lmax_list_TT, mu_LN_TT, sig_LN_TT=np.loadtxt(
-        '/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_low_ell/lognormal_fit_2bins_TT.txt', unpack=True)
-lmin_list_TT=lmin_list_TT.astype('int')
-lmax_list_TT=lmax_list_TT.astype('int')
+# TT
+lmin_list_TT, lmax_list_TT, mu_LN_TT, sig_LN_TT = np.loadtxt(
+    os.path.join(_planck_lowell_dir, 'lognormal_fit_2bins_TT.txt'), unpack=True)
+lmin_list_TT = lmin_list_TT.astype('int')
+lmax_list_TT = lmax_list_TT.astype('int')
 ell = np.arange(2, 30)
 
 # create emulator cache to store loaded emulators
@@ -55,16 +72,16 @@ emulator_cache = {}
 # ------ FUNCTIONS FOR LOADING DATA AND THEORY CALCS ---------
 # loads the DESI DR1 or DR2 BAO data
 def DESI_data(filepath):
-    with open(filepath + '/cov_mat.txt') as file:
+    with open(os.path.join(filepath, 'cov_mat.txt')) as file:
         list = [[eval(Num) for Num in line.split()] for line in file]
         cov = jnp.array(list)
         cov_inv = jnp.linalg.inv(cov)
-    with open(filepath + '/data.txt') as file:
+    with open(os.path.join(filepath, 'data.txt')) as file:
         list = [[eval(Num) for Num in line.split()[0:2]] for line in file.readlines()[1:]]
         array = np.array(list)
         redshifts = array[0:,0]
         data = array[0:,1]
-    with open(filepath + '/model_order.txt') as file:
+    with open(os.path.join(filepath, 'model_order.txt')) as file:
         list = [eval(line) for line in file.readlines()]
         model_order = jnp.array(list)
     return redshifts, data, cov_inv, model_order
@@ -80,7 +97,6 @@ def DESI_theory(params, redshift, model_order, extension, cp_DA, cp_H, cp_derive
     c = 299792.458 
     H = cp_H.predict(params_array)
     DA = cp_DA.predict(params_array)
-    #DA = jnp.concatenate([jnp.array([0.0]),DA])
 
     dm = jnp.multiply(jnp.interp(redshift,z_grid[1:],DA), (1+redshift))/r_d
     dh = (c/jnp.interp(redshift,z_grid,H))/r_d
@@ -90,16 +106,16 @@ def DESI_theory(params, redshift, model_order, extension, cp_DA, cp_H, cp_derive
     all_theories = jnp.stack([dm, dh, dv])
     
     return all_theories[model_order, jnp.arange(len(redshift))]
-        
+         
 # loads the DES-SN5YR SN data
 def DES_data(filepath):
-    df = pd.read_csv(filepath + '/DES-SN5YR_HD.csv')
+    df = pd.read_csv(os.path.join(filepath, 'DES-SN5YR_HD.csv'))
     z_cmb = jnp.array(df['zHD'].to_list())
     z_hel = jnp.array(df['zHEL'].to_list())
     dist = np.array(df['MU'].to_list())
     stat = df['MUERR_FINAL'].values
     redshifts = jnp.stack([z_cmb,z_hel])
-    with open(filepath + '/covsys_000.txt', 'r') as file:
+    with open(os.path.join(filepath, 'covsys_000.txt'), 'r') as file:
         array = [eval(line.strip()) for line in file]
         array.pop(0) # This is done as the first line contains N_SN (1829)
         array = np.array(array)
@@ -110,15 +126,15 @@ def DES_data(filepath):
     
     return redshifts, dist, cov_inv, None
 
-# loads the DES SN reanlaysis DES-Doveckie data
+# loads the DES SN reanalysis DES-Doveckie data
 def DES_Doveckie_data(filepath):
-    df = pd.read_csv(filepath+'/DES-Dovekie_HD.csv',comment='#',sep=r'\s+')
+    df = pd.read_csv(os.path.join(filepath,'DES-Dovekie_HD.csv'),comment='#',sep=r'\s+')
 
     z_cmb = jnp.array(df['zHD'].to_list())
     z_hel = jnp.array(df['zHEL'].to_list())
     dist = jnp.array(df['MU'].to_list())
     redshifts = jnp.stack([z_cmb,z_hel])
-    with jnp.load(filepath+'/STAT+SYS.npz', 'r') as file:
+    with np.load(os.path.join(filepath,'STAT+SYS.npz'), 'r') as file:
         cov_upper_triangle = file['cov']
         n = len(z_cmb)
         inv_cov = np.zeros((n,n))
@@ -142,6 +158,7 @@ def SN_theory(params, redshift, model_order, extension, cp_DA):
     Mu_cosmo = (5 * jnp.log10(D_L)) + 25
     
     return Mu_cosmo + M_b
+
 # Theory predictions for the planck-lite-py implementation of the high-l TTTEEE and low-l TT data
 def CMB_theory(params, redshift, model_order, extension, cp_tt, cp_te, cp_ee):
     A_planck = params['A_planck']
@@ -171,7 +188,7 @@ def CMB_theory(params, redshift, model_order, extension, cp_tt, cp_te, cp_ee):
 
 # loads data for planck-lite-py high-l TTTEEE and low-l TT CMB implementation
 def CMB_data(filepath):
-    cov_cmb_hl = FortranFile(filepath +'/c_matrix_plik_v22.dat', 'r')
+    cov_cmb_hl = FortranFile(os.path.join(filepath, 'c_matrix_plik_v22.dat'), 'r')
     covmat_cmb_hl = cov_cmb_hl.read_reals(dtype=float).reshape((613,613))
     cov_cmb = np.zeros((615,615))
     cov_cmb[0:2, 0:2] = np.diag(X_sig_low_ell**2)
@@ -183,14 +200,14 @@ def CMB_data(filepath):
 
 # loads data for Pantheon+ SN 
 def PantheonPlus_data(filepath):
-    df = pd.read_csv(filepath + '/Pantheon+SH0ES.dat',sep=r'\s+')
+    df = pd.read_csv(os.path.join(filepath, 'Pantheon+SH0ES.dat'),sep=r'\s+')
     mask = df['zHD'] > 0.01
     df = df[mask]
     z_cmb = jnp.array(df['zHD'].to_list())
     z_hel = jnp.array(df['zHEL'].to_list())
     m_b = jnp.array(df['m_b_corr'].to_list())
     redshifts = jnp.stack([z_cmb,z_hel])
-    with open(filepath+'/Pantheon+SH0ES_STAT+SYS.cov','r') as file:
+    with open(os.path.join(filepath,'Pantheon+SH0ES_STAT+SYS.cov'),'r') as file:
         dim = int(file.readline())
         cov = np.loadtxt(file)[0:]
     cov_matrix = cov.reshape((dim,dim))
@@ -201,12 +218,12 @@ def PantheonPlus_data(filepath):
 
 # loads Union 3 SN data
 def Union3_data(filepath):
-    df = pd.read_csv(filepath + '/lcparam_full.txt', sep=r'\s+')
+    df = pd.read_csv(os.path.join(filepath, 'lcparam_full.txt'), sep=r'\s+')
     z_cmb = jnp.array(df['zcmb'].to_list())
     z_hel = jnp.array(df['zhel'].to_list())
     m_b = jnp.array(df['mb'].to_list())
     redshifts = jnp.stack([z_cmb,z_hel])
-    with open(filepath+ '/mag_covmat.txt') as file:
+    with open(os.path.join(filepath, 'mag_covmat.txt')) as file:
         dim = int(file.readline())
         cov = np.loadtxt(file)[0:]
     cov_matrix = cov.reshape((dim,dim))
@@ -250,7 +267,7 @@ def low_ell_EE_data(filepath):
 
 # load high-l TTTEEE binned data from plank-low-py
 def high_ell_TTTEEE_data(filepath):
-    cov_cmb_hl = FortranFile(filepath +'/c_matrix_plik_v22.dat', 'r')
+    cov_cmb_hl = FortranFile(os.path.join(filepath, 'c_matrix_plik_v22.dat'), 'r')
     covmat_cmb_hl = cov_cmb_hl.read_reals(dtype=float).reshape((613,613))
     CMB_cov_inv = jnp.linalg.inv(covmat_cmb_hl)
 
@@ -284,88 +301,99 @@ def high_ell_TTTEEE_theory(params, redshift, model_order, extension, cp_tt,cp_te
     return Cl
 
 # load emulators needed for requested data
-def load_emulators(emulators,extensions):
+def load_emulators(emulators, extensions):
     active_emulators = []
     for emulator in emulators:
         config = emulator_config[emulator]
-        key = f"{emulator}"
+        key = f"{emulator}_{extensions}"
         if key not in emulator_cache:
-            emulator_cache[key] = CPJ(probe=config['probe'],filepath='/cephfs/jlayton/MPhys/MPhys_extended_emulators/'+extensions+config['filepath'])
+            emulator_path = os.path.join(_emulator_base, extensions, config['filepath'].lstrip('/'))
+            emulator_cache[key] = CPJ(probe=config['probe'], filepath=emulator_path)
         active_emulators.append(emulator_cache[key])
     return active_emulators     
 
 # ----------- GLOBAL DICTIONARIES -----------
 # This catalog stores the location of the data, data load function, theory function, and emulators to use 
 # for each dataset
-catalog = {'BAO_DR1':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/DESI_BAO/DR1',
-                      'load_fn': DESI_data,
-                      'theory_fn': DESI_theory,
-                      'emulators': ['cp_DA',
-                                    'cp_H',
-                                    'cp_derived']},
-            'BAO_DR2':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/DESI_BAO/DR2',
-                      'load_fn': DESI_data,
-                      'theory_fn': DESI_theory,
-                      'emulators': ['cp_DA',
-                                    'cp_H',
-                                    'cp_derived']},
-            'DES_Y5':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/DES_Y5',
-                      'load_fn': DES_data,
-                      'theory_fn': SN_theory,
-                      'emulators': ['cp_DA']},
-            'DES_Doveckie':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/DES_Doveckie',
-                      'load_fn': DES_Doveckie_data,
-                      'theory_fn': SN_theory,
-                      'emulators': ['cp_DA']},
-            'Union3': {'data_filepath': '/cephfs/jlayton/MPhys/data_for_MPhys_extended/Union3',
-                       'load_fn': Union3_data,
-                       'theory_fn':SN_theory,
-                       'emulators':['cp_DA']},
-            'CMB_plik_lite':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_plik_lite',
-                      'load_fn': CMB_data,
-                      'theory_fn': CMB_theory,
-                      'emulators': ['cp_tt',
-                                    'cp_te',
-                                    'cp_ee']},
-            'CMB_high_ell_TTTEEE':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_plik_lite',
-                      'load_fn': high_ell_TTTEEE_data,
-                      'theory_fn': high_ell_TTTEEE_theory,
-                      'emulators': ['cp_tt',
-                                    'cp_te',
-                                    'cp_ee']},
-            'CMB_low_ell_TT':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_low_ell',
-                      'load_fn': low_ell_TT_data,
-                      'theory_fn': low_ell_TT_theory,
-                      'emulators': ['cp_tt']},
-            'CMB_low_ell_EE':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/Planck_2018_low_ell',
-                      'load_fn': low_ell_EE_data,
-                      'theory_fn': low_ell_EE_theory,
-                      'emulators': ['cp_ee']},
-            'PantheonPlus': {'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/PantheonPlus',
-                      'load_fn': PantheonPlus_data,
-                      'theory_fn': SN_theory,
-                      'emulators': ['cp_DA']}
-           }
+catalog = {
+    'BAO_DR1': {
+        'data_filepath': os.path.join(_data_base, 'DESI_BAO', 'DR1'),
+        'load_fn': DESI_data,
+        'theory_fn': DESI_theory,
+        'emulators': ['cp_DA', 'cp_H', 'cp_derived']
+    },
+    'BAO_DR2': {
+        'data_filepath': os.path.join(_data_base, 'DESI_BAO', 'DR2'),
+        'load_fn': DESI_data,
+        'theory_fn': DESI_theory,
+        'emulators': ['cp_DA', 'cp_H', 'cp_derived']
+    },
+    'DES_Y5': {
+        'data_filepath': os.path.join(_data_base, 'DES_Y5'),
+        'load_fn': DES_data,
+        'theory_fn': SN_theory,
+        'emulators': ['cp_DA']
+    },
+    'DES_Doveckie': {
+        'data_filepath': os.path.join(_data_base, 'DES_Doveckie'),
+        'load_fn': DES_Doveckie_data,
+        'theory_fn': SN_theory,
+        'emulators': ['cp_DA']
+    },
+    'Union3': {
+        'data_filepath': os.path.join(_data_base, 'Union3'),
+        'load_fn': Union3_data,
+        'theory_fn': SN_theory,
+        'emulators': ['cp_DA']
+    },
+    'CMB_plik_lite': {
+        'data_filepath': os.path.join(_data_base, 'Planck_2018_plik_lite'),
+        'load_fn': CMB_data,
+        'theory_fn': CMB_theory,
+        'emulators': ['cp_tt', 'cp_te', 'cp_ee']
+    },
+    'CMB_high_ell_TTTEEE': {
+        'data_filepath': os.path.join(_data_base, 'Planck_2018_plik_lite'),
+        'load_fn': high_ell_TTTEEE_data,
+        'theory_fn': high_ell_TTTEEE_theory,
+        'emulators': ['cp_tt', 'cp_te', 'cp_ee']
+    },
+    'CMB_low_ell_TT': {
+        'data_filepath': os.path.join(_data_base, 'Planck_2018_low_ell'),
+        'load_fn': low_ell_TT_data,
+        'theory_fn': low_ell_TT_theory,
+        'emulators': ['cp_tt']
+    },
+    'CMB_low_ell_EE': {
+        'data_filepath': os.path.join(_data_base, 'Planck_2018_low_ell'),
+        'load_fn': low_ell_EE_data,
+        'theory_fn': low_ell_EE_theory,
+        'emulators': ['cp_ee']
+    },
+    'PantheonPlus': {
+        'data_filepath': os.path.join(_data_base, 'PantheonPlus'),
+        'load_fn': PantheonPlus_data,
+        'theory_fn': SN_theory,
+        'emulators': ['cp_DA']
+    }
+}
 
 # This gives the file and probe for loading in each specific emulator
-emulator_config = {'cp_tt': {'probe':'custom_log',
-                            'filepath':'/cmb_tt.npz'},
-                    'cp_ee': {'probe': 'custom_log',
-                             'filepath': '/cmb_ee.npz'},
-                    'cp_te': {'probe': 'custom_pca',
-                             'filepath': '/cmb_te.npz'},
-                    'cp_H': {'probe': 'custom_log',
-                             'filepath': '/background_H.npz'},
-                    'cp_DA': {'probe': 'custom_log',
-                             'filepath': '/background_Da.npz'},
-                    'cp_derived': {'probe': 'custom',
-                             'filepath': '/cmb_derived.npz'}
-                   }
+emulator_config = {
+    'cp_tt': {'probe': 'custom_log', 'filepath': '/cmb_tt.npz'},
+    'cp_ee': {'probe': 'custom_log', 'filepath': '/cmb_ee.npz'},
+    'cp_te': {'probe': 'custom_pca', 'filepath': '/cmb_te.npz'},
+    'cp_H': {'probe': 'custom_log', 'filepath': '/background_H.npz'},
+    'cp_DA': {'probe': 'custom_log', 'filepath': '/background_Da.npz'},
+    'cp_derived': {'probe': 'custom', 'filepath': '/cmb_derived.npz'}
+}
 
 # Supported parameter spaces 
-param_spaces = {'Base': ['ombh2','omch2','h','ns','logA','tau','w0','wa'],
-                'Curvature': ['ombh2','omch2','h','ns','logA','tau','w0','wa','omk'],
-                'Neutrino_mass': ['ombh2','omch2','h','ns','logA','tau','w0','wa','mnu']}
+param_spaces = {
+    'Base': ['ombh2', 'omch2', 'h', 'ns', 'logA', 'tau', 'w0', 'wa'],
+    'Curvature': ['ombh2', 'omch2', 'h', 'ns', 'logA', 'tau', 'w0', 'wa', 'omk'],
+    'Neutrino_mass': ['ombh2', 'omch2', 'h', 'ns', 'logA', 'tau', 'w0', 'wa', 'mnu']
+}
 
 
 # class which loads in each data set and assigns it a theory model
@@ -376,14 +404,14 @@ class Dataset(NamedTuple):
     theory_fn: Callable
 
 class stats_quantities:
-    def __init__(self,requested_data, extensions):
+    def __init__(self, requested_data, extensions):
     
         datasets_requested = []
         for name in requested_data:
             config = catalog[name]
             data_filepath = config['data_filepath']
             x, y, inv_covariance, model_order = config['load_fn'](data_filepath)
-            emulators = load_emulators(config['emulators'],extensions)
+            emulators = load_emulators(config['emulators'], extensions)
             loaded_kwargs = {arg_name: emulator for arg_name, emulator in zip(config['emulators'],emulators)}
             final_theory_fn = partial(config['theory_fn'],**loaded_kwargs,extension=extensions, model_order=model_order if model_order is not None else jnp.array([]))
             dataset = Dataset(x=jnp.array(x) if x is not None else jnp.array([]), y=jnp.array(y), inv_covariance=jnp.array(inv_covariance),theory_fn=final_theory_fn)
@@ -498,7 +526,7 @@ class stats_quantities:
             for name, val in zip(param_names,res.x*scale_factors):
                 print(f"{name}:{val:.5f}")
 
-        def getdist_plot(samples_path,plot_path, params_to_plot, param_names,MAP=None,legend_title=None,ncols=None):
+        def getdist_plot(samples_path, plot_path, params_to_plot, param_names, MAP=None, legend_title=None, ncols=None):
             '''
             args
             -----
@@ -570,7 +598,7 @@ class stats_quantities:
                 handles,
                 labels,
                 loc='upper right',
-                bbox_to_anchor=(0.99, 0.99),   # X, Y coordinates (1.0 is the edge)
+                bbox_to_anchor=(0.99, 0.99),
                 ncol=1,
                 title = legend_title,
                 frameon=False,
@@ -593,4 +621,3 @@ class stats_quantities:
         self.MAP = MAP
         self.chi_square = chi_square
         self.getdist_plot = getdist_plot
-        
