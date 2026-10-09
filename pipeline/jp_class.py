@@ -11,7 +11,7 @@ import scipy
 from getdist import plots, MCSamples, loadMCSamples
 import matplotlib.pyplot as plt
 
-jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True) # this is set as 64-bit precision is necessary
 # ------ Set redshift grid for emulator -------
 z_grid = jnp.linspace(0, 5.0, 1000) 
 # ------ Set binning quantiites for CMB (taken from Planck-lite-py by heather prince) ------
@@ -49,10 +49,11 @@ lmin_list_TT=lmin_list_TT.astype('int')
 lmax_list_TT=lmax_list_TT.astype('int')
 ell = np.arange(2, 30)
 
+# create emulator cache to store loaded emulators
 emulator_cache = {}
 
 # ------ FUNCTIONS FOR LOADING DATA AND THEORY CALCS ---------
-
+# loads the DESI DR1 or DR2 BAO data
 def DESI_data(filepath):
     with open(filepath + '/cov_mat.txt') as file:
         list = [[eval(Num) for Num in line.split()] for line in file]
@@ -68,6 +69,7 @@ def DESI_data(filepath):
         model_order = jnp.array(list)
     return redshifts, data, cov_inv, model_order
 
+# Theory function to return theory vector in order which matches the DESI BAO data
 def DESI_theory(params, redshift, model_order, extension, cp_DA, cp_H, cp_derived):
     params_array = jnp.array([params[y] for y in param_spaces[extension]])
     derived = cp_derived.predict(params_array)
@@ -88,7 +90,8 @@ def DESI_theory(params, redshift, model_order, extension, cp_DA, cp_H, cp_derive
     all_theories = jnp.stack([dm, dh, dv])
     
     return all_theories[model_order, jnp.arange(len(redshift))]
-
+        
+# loads the DES-SN5YR SN data
 def DES_data(filepath):
     df = pd.read_csv(filepath + '/DES-SN5YR_HD.csv')
     z_cmb = jnp.array(df['zHD'].to_list())
@@ -107,6 +110,7 @@ def DES_data(filepath):
     
     return redshifts, dist, cov_inv, None
 
+# loads the DES SN reanlaysis DES-Doveckie data
 def DES_Doveckie_data(filepath):
     df = pd.read_csv(filepath+'/DES-Dovekie_HD.csv',comment='#',sep=r'\s+')
 
@@ -124,6 +128,7 @@ def DES_Doveckie_data(filepath):
        
     return redshifts, dist, inv_cov, None
 
+# Theory predictions for SN
 def SN_theory(params, redshift, model_order, extension, cp_DA):
     model_order = 0.0
     M_b = params['M_b']
@@ -131,13 +136,13 @@ def SN_theory(params, redshift, model_order, extension, cp_DA):
     SN_z_hel = redshift[1]
     SN_z_cmb = redshift[0]
     DA = cp_DA.predict(params_array)
-    #DA = jnp.concatenate([jnp.array([0.0]),DA])
+    
     D_L = (1 + SN_z_hel) * (1+ SN_z_cmb) * jnp.interp(SN_z_cmb,z_grid[1:],DA)
     
     Mu_cosmo = (5 * jnp.log10(D_L)) + 25
     
     return Mu_cosmo + M_b
-
+# Theory predictions for the planck-lite-py implementation of the high-l TTTEEE and low-l TT data
 def CMB_theory(params, redshift, model_order, extension, cp_tt, cp_te, cp_ee):
     A_planck = params['A_planck']
     params_array = jnp.array([params[y] for y in param_spaces[extension]])
@@ -164,6 +169,7 @@ def CMB_theory(params, redshift, model_order, extension, cp_tt, cp_te, cp_ee):
 
     return Cl
 
+# loads data for planck-lite-py high-l TTTEEE and low-l TT CMB implementation
 def CMB_data(filepath):
     cov_cmb_hl = FortranFile(filepath +'/c_matrix_plik_v22.dat', 'r')
     covmat_cmb_hl = cov_cmb_hl.read_reals(dtype=float).reshape((613,613))
@@ -175,6 +181,7 @@ def CMB_data(filepath):
 
     return None, cmb_data, CMB_cov_inv, None
 
+# loads data for Pantheon+ SN 
 def PantheonPlus_data(filepath):
     df = pd.read_csv(filepath + '/Pantheon+SH0ES.dat',sep=r'\s+')
     mask = df['zHD'] > 0.01
@@ -192,6 +199,7 @@ def PantheonPlus_data(filepath):
 
     return redshifts, m_b, inv_cov, None
 
+# loads Union 3 SN data
 def Union3_data(filepath):
     df = pd.read_csv(filepath + '/lcparam_full.txt', sep=r'\s+')
     z_cmb = jnp.array(df['zcmb'].to_list())
@@ -206,6 +214,7 @@ def Union3_data(filepath):
 
     return redshifts, m_b, inv_cov, None
 
+# low-l TT theory prediction matching plank-low-py data
 def low_ell_TT_theory(params, redshift, model_order, extension, cp_tt):
     A_planck = params['A_planck']
     params_array = jnp.array([params[y] for y in param_spaces[extension]])
@@ -217,6 +226,7 @@ def low_ell_TT_theory(params, redshift, model_order, extension, cp_tt):
     ])/(A_planck**2)
     return jnp.log(Dl_bin)
 
+# low-l EE theory prediction matching plank-low-py data
 def low_ell_EE_theory(params, redshift, model_order, extension, cp_ee):
     A_planck = params['A_planck']
     params_array = jnp.array([params[y] for y in param_spaces[extension]])
@@ -228,14 +238,17 @@ def low_ell_EE_theory(params, redshift, model_order, extension, cp_ee):
     ])/(A_planck**2)
     return jnp.log(Dl_bin - loc_LN_EE)
 
+# load low-l TT binned data from plank-low-py
 def low_ell_TT_data(filepath):
     inv_cov = jnp.diag(1.0 / sig_LN_TT**2)
     return None, mu_LN_TT, inv_cov, None
 
+# load low-l EE binned data from plank-low-py
 def low_ell_EE_data(filepath):
     inv_cov = jnp.diag(1.0 / sig_LN_EE**2)
     return None, mu_LN_EE, inv_cov, None
 
+# load high-l TTTEEE binned data from plank-low-py
 def high_ell_TTTEEE_data(filepath):
     cov_cmb_hl = FortranFile(filepath +'/c_matrix_plik_v22.dat', 'r')
     covmat_cmb_hl = cov_cmb_hl.read_reals(dtype=float).reshape((613,613))
@@ -243,6 +256,7 @@ def high_ell_TTTEEE_data(filepath):
 
     return None, X_data, CMB_cov_inv, None
 
+# Theory predicition for high-l TTTEEE which matches planck-low-py data
 def high_ell_TTTEEE_theory(params, redshift, model_order, extension, cp_tt,cp_te, cp_ee):
     A_planck = params['A_planck']
     params_array = jnp.array([params[y] for y in param_spaces[extension]])
@@ -268,7 +282,8 @@ def high_ell_TTTEEE_theory(params, redshift, model_order, extension, cp_tt,cp_te
     Cl = jnp.concatenate([jnp.array(Cltt_bin),jnp.array(Clte_bin),jnp.array(Clee_bin)])/(A_planck**2)
 
     return Cl
-    
+
+# load emulators needed for requested data
 def load_emulators(emulators,extensions):
     active_emulators = []
     for emulator in emulators:
@@ -280,7 +295,8 @@ def load_emulators(emulators,extensions):
     return active_emulators     
 
 # ----------- GLOBAL DICTIONARIES -----------
-
+# This catalog stores the location of the data, data load function, theory function, and emulators to use 
+# for each dataset
 catalog = {'BAO_DR1':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_extended/DESI_BAO/DR1',
                       'load_fn': DESI_data,
                       'theory_fn': DESI_theory,
@@ -331,6 +347,7 @@ catalog = {'BAO_DR1':{'data_filepath':'/cephfs/jlayton/MPhys/data_for_MPhys_exte
                       'emulators': ['cp_DA']}
            }
 
+# This gives the file and probe for loading in each specific emulator
 emulator_config = {'cp_tt': {'probe':'custom_log',
                             'filepath':'/cmb_tt.npz'},
                     'cp_ee': {'probe': 'custom_log',
@@ -345,6 +362,7 @@ emulator_config = {'cp_tt': {'probe':'custom_log',
                              'filepath': '/cmb_derived.npz'}
                    }
 
+# Supported parameter spaces 
 param_spaces = {'Base': ['ombh2','omch2','h','ns','logA','tau','w0','wa'],
                 'Curvature': ['ombh2','omch2','h','ns','logA','tau','w0','wa','omk'],
                 'Neutrino_mass': ['ombh2','omch2','h','ns','logA','tau','w0','wa','mnu']}
